@@ -1,0 +1,7 @@
+numpy
+matplotlib
+argparse
+sklearn
+pandas
+wordcloud
+nltk
