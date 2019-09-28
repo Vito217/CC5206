@@ -47,6 +47,7 @@ for i in terms:
 	print(i, file=termsFile)
 termsFile.close()
 
+print('writing centroid in belonging cluster')
 clusterCentroids = open('clusterCentroids.txt','w+')
 for i in range(true_k):
 	print('Cluster %d',i, file = clusterCentroids)
