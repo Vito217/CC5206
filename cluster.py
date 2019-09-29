@@ -5,11 +5,13 @@ import argparse
 
 from random import shuffle
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, normalize
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.cluster import KMeans
 from nltk.corpus import stopwords
 from mpl_toolkits.mplot3d import Axes3D
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import ClusterCentroids
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
 
@@ -24,7 +26,7 @@ def load_stopwords(string):
     return sw
 
 
-def load_data(path, subpath):
+def load_data(path, subpath, nrows):
     print("Reading all data and labels")
     data_labels = []
     for subdir, dirs, files in os.walk(path):
@@ -34,7 +36,7 @@ def load_data(path, subpath):
                 with open(os.path.join(subdir, file), 'r', encoding='utf8') as f:
                     data_labels.append([f.read(), subdir.split("\\")[1]])
     shuffle(data_labels)
-    data_labels = data_labels[:125]
+    data_labels = data_labels[:nrows]
     data = [corpus for corpus, _ in data_labels]
     labels = [label for _, label in data_labels]
     return data, labels
@@ -52,6 +54,7 @@ def vectorize(data, stop_words, ngram_min, ngram_max):
     print("Getting Bag Of Words")
     vectorizer = TfidfVectorizer(stop_words=stop_words, ngram_range=(ngram_min, ngram_max))
     x = vectorizer.fit_transform(data)
+    x = normalize(x)
     return x
 
 
@@ -97,16 +100,25 @@ def plot_clusters(x, labels, dim, n_clusters):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate clusters")
     # parser.add_argument("--encode", action='store_true')
+    parser.add_argument("--oversampling", action='store_true')
+    parser.add_argument("--undersampling", action='store_true')
     parser.add_argument("-stopwords", type=str, help="Path to stopwords", required=True)
     parser.add_argument("-data", type=str, help="Path to dataset. Every folder name is the label.", required=True)
     parser.add_argument("-subdata", type=str, help="Subdata available: raw, anio, anio_mes", required=True)
     parser.add_argument("-ngram_min", type=int, help="Min range of n-gram", required=True)
     parser.add_argument("-ngram_max", type=int, help="Max range of n-gram", required=True)
     parser.add_argument("-dim", type=int, help="2 for 2D plot, 3 for 3D plot", required=True)
+    parser.add_argument("-nrows", type=int, help="Number of rows to use", required=True)
 
     pargs = parser.parse_args()
     stopwords = load_stopwords(pargs.stopwords)
-    data, labels = load_data(pargs.data, pargs.subdata)
+    data, labels = load_data(pargs.data, pargs.subdata, pargs.nrows)
+    if pargs.oversampling:
+        sampler = SMOTE()
+        data, labels = sampler.fit_resample(data, labels)
+    elif pargs.undersampling:
+        sampler = ClusterCentroids()
+        data, labels = sampler.fit_resample(data, labels)
     n_clusters = get_number_of_clusters(labels)
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
