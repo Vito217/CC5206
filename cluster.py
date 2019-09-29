@@ -10,8 +10,8 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.cluster import KMeans
 from nltk.corpus import stopwords
 from mpl_toolkits.mplot3d import Axes3D
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import ClusterCentroids
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
 
@@ -26,7 +26,7 @@ def load_stopwords(string):
     return sw
 
 
-def load_data(path, subpath, nrows):
+def load_data(path, subpath, nrows=100):
     print("Reading all data and labels")
     data_labels = []
     for subdir, dirs, files in os.walk(path):
@@ -113,15 +113,16 @@ if __name__ == '__main__':
     pargs = parser.parse_args()
     stopwords = load_stopwords(pargs.stopwords)
     data, labels = load_data(pargs.data, pargs.subdata, pargs.nrows)
-    if pargs.oversampling:
-        sampler = SMOTE()
-        data, labels = sampler.fit_resample(data, labels)
-    elif pargs.undersampling:
-        sampler = ClusterCentroids()
-        data, labels = sampler.fit_resample(data, labels)
+    unique, counts = np.unique(labels, return_counts=True)
     n_clusters = get_number_of_clusters(labels)
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
     x = vectorize(data, stopwords, ngram_min, ngram_max)
+    if pargs.oversampling:
+        sampler = RandomOverSampler()
+        x, labels = sampler.fit_resample(x, labels)
+    elif pargs.undersampling:
+        sampler = RandomUnderSampler()
+        x, labels = sampler.fit_resample(x, labels)
     dim = pargs.dim
     plot_clusters(x, labels, dim, n_clusters)
