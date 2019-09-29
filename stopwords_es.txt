@@ -60,6 +60,7 @@ alli
 allá
 allí
 alrededor
+also
 am
 ambos
 ampleamos
@@ -150,6 +151,7 @@ below
 between
 bien
 both
+br
 breve
 breves
 buen
@@ -663,6 +665,7 @@ gracias
 gran
 grande
 grandes
+gt
 gueno
 h
 ha
@@ -831,6 +834,7 @@ llevasen
 llevo
 lo
 los
+lt
 luego
 lugar
 m
@@ -1390,6 +1394,7 @@ whom
 why
 will
 with
+women
 x
 y
 ya
