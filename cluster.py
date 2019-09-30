@@ -8,13 +8,17 @@ from random import shuffle
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import LabelEncoder, normalize
 from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans, AffinityPropagation, MeanShift, SpectralClustering, \
+    AgglomerativeClustering, DBSCAN, OPTICS, Birch
 from nltk.corpus import stopwords
 from mpl_toolkits.mplot3d import Axes3D
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
+from datetime import datetime
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
+colors = np.array(["#1c3969", "#298294", "#177548", "#177522", "#4b8a1c", "#646e0c", "#695311",
+                   "#7a3f11", "#7a1111", "#521173"])
 
 
 def load_stopwords(string):
@@ -27,7 +31,7 @@ def load_stopwords(string):
     return sw
 
 
-def load_data(path, subpath, nrows=100, ignore=None, filt=None):
+def load_data(path, subpath, nrows=None, ignore=None, filt=None):
     print("Reading all data and labels")
     data_labels = []
     for subdir, dirs, files in os.walk(path):
@@ -40,7 +44,9 @@ def load_data(path, subpath, nrows=100, ignore=None, filt=None):
                     with open(os.path.join(subdir, file), 'r', encoding='utf8') as f:
                         data_labels.append([f.read(), params[1]])
     shuffle(data_labels)
-    data_labels = data_labels[:nrows]
+    if nrows is not None:
+        data_labels = data_labels[:nrows]
+    # data_labels = sorted(data_labels, key=lambda x: x[1])
     data = [corpus for corpus, _ in data_labels]
     labels = [label for _, label in data_labels]
     return data, labels
@@ -48,24 +54,40 @@ def load_data(path, subpath, nrows=100, ignore=None, filt=None):
 
 def get_number_of_clusters(labels):
     print("Indexing labels")
-    le = LabelEncoder()
-    target_ind = le.fit_transform(labels)
-    n_clusters = np.unique(target_ind).shape[0]
-    return n_clusters
+    # le = LabelEncoder()
+    # target_ind = le.fit_transform(labels)
+    unique = np.unique(labels)
+    return len(unique)
 
 
 def vectorize(data, stop_words, ngram_min, ngram_max):
     print("Getting Bag Of Words")
     vectorizer = TfidfVectorizer(stop_words=stop_words, ngram_range=(ngram_min, ngram_max))
     x = vectorizer.fit_transform(data)
-    x = normalize(x)
     return x
 
 
-def plot_clusters(x, labels, dim, n_clusters, save=False):
+def plot_clusters(x, labels, dim, n_clusters, cluster_type="kmeans", save=False):
     trunc = TruncatedSVD(n_components=dim)
     x = trunc.fit_transform(x)
-    km = KMeans(n_clusters=n_clusters)
+    if cluster_type == "mbkmeans":
+        km = MiniBatchKMeans(n_clusters=n_clusters)
+    elif cluster_type == "affprop":
+        km = AffinityPropagation()
+    elif cluster_type == "mshift":
+        km = MeanShift()
+    elif cluster_type == "spec":
+        km = SpectralClustering()
+    elif cluster_type == "aggc":
+        km = AgglomerativeClustering()
+    elif cluster_type == "dbscan":
+        km = DBSCAN()
+    elif cluster_type == "optisc":
+        km = OPTICS()
+    elif cluster_type == "birch":
+        km = Birch()
+    else:
+        km = KMeans(n_clusters=n_clusters)
     km.fit(x)
     lb = km.labels_
     data_dict = {}
@@ -75,21 +97,19 @@ def plot_clusters(x, labels, dim, n_clusters, save=False):
             data_dict[label] = {'data': [], 'clusters': [], 'marker': markers.pop(0)}
         data_dict[label]['data'].append(x[i])
         data_dict[label]['clusters'].append(lb[i])
-    legends = []
     if dim == 2:
         for key in data_dict.keys():
             x = [row[0] for row in data_dict[key]['data']]
             y = [row[1] for row in data_dict[key]['data']]
-            c = [float(num) for num in data_dict[key]['clusters']]
+            c = [num for num in data_dict[key]['clusters']]
             marker = data_dict[key]['marker']
-            l = plt.scatter(x, y, c=c, marker=marker, label=key)
-            legends.append(l)
-        plt.legend(handles=legends)
+            l = plt.scatter(x, y, c=colors[c], marker=marker, label=key)
+        plt.legend()
         plt.show()
         if save:
             if not os.path.exists("results/speech_clustering"):
                 os.makedirs("results/speech_clustering")
-            plt.savefig("results/speech_clustering/cluster_plot.png")
+            plt.savefig("results/speech_clustering/{}.png".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
     elif dim == 3:
         plot = plt.figure()
         ax = Axes3D(plot)
@@ -97,16 +117,15 @@ def plot_clusters(x, labels, dim, n_clusters, save=False):
             x = [row[0] for row in data_dict[key]['data']]
             y = [row[1] for row in data_dict[key]['data']]
             z = [row[2] for row in data_dict[key]['data']]
-            c = [float(num) for num in data_dict[key]['clusters']]
+            c = [num for num in data_dict[key]['clusters']]
             marker = data_dict[key]['marker']
-            l = ax.scatter(x, y, z, c=c, marker=marker, label=key)
-            legends.append(l)
-        plot.legend(handles=legends)
+            ax.scatter(x, y, z, c=colors[c], marker=marker, label=key)
+        plot.legend()
         plot.show()
         if save:
             if not os.path.exists("results/speech_clustering"):
                 os.makedirs("results/speech_clustering")
-            plot.savefig("results/speech_clustering/cluster_plot.png")
+            plot.savefig("results/speech_clustering/{}.png".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
 
 
 if __name__ == '__main__':
@@ -119,19 +138,22 @@ if __name__ == '__main__':
     parser.add_argument("-ngram_min", type=int, help="Min range of n-gram", required=True)
     parser.add_argument("-ngram_max", type=int, help="Max range of n-gram", required=True)
     parser.add_argument("-dim", type=int, help="2 for 2D plot, 3 for 3D plot", required=True)
+    parser.add_argument("-type", type=int, help="kmeans, mbkmeans, affprop, mshift, spec, aggc, dbscan, optics, birch",
+                        required=False)
     parser.add_argument("-nrows", type=int, help="Number of rows to use", required=False)
     parser.add_argument("-ignore", type=str, help="CSV list with candidates (e.g. pinera,bachelet)", required=False)
     parser.add_argument("-filter", type=str, help="Regex used to filter some texts", required=False)
+    parser.add_argument("-nclusters", type=str, help="Number of clusters to use", required=False)
     parser.add_argument("--save", action='store_true')
 
     pargs = parser.parse_args()
     stopwords = load_stopwords(pargs.stopwords)
     ignore = pargs.ignore.split(",") if pargs.ignore else None
-    nrows = pargs.nrows if pargs.nrows else 100
+    nrows = pargs.nrows if pargs.nrows else None
     filt = re.compile(pargs.filter) if pargs.filter else None
     data, labels = load_data(pargs.data, pargs.subdata, nrows, ignore, filt)
-    unique, counts = np.unique(labels, return_counts=True)
-    n_clusters = get_number_of_clusters(labels)
+    n_clusters = pargs.nclusters if (pargs.nclusters and pargs.nclusters >= 1) else get_number_of_clusters(labels)
+    cluster_type = pargs.type if pargs.type else "kmeans"
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
     x = vectorize(data, stopwords, ngram_min, ngram_max)
@@ -143,4 +165,4 @@ if __name__ == '__main__':
         x, labels = sampler.fit_resample(x, labels)
     dim = pargs.dim
     save = pargs.save
-    plot_clusters(x, labels, dim, n_clusters, save)
+    plot_clusters(x, labels, dim, n_clusters, cluster_type, save)
