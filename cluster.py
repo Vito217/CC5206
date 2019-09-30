@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -26,15 +27,18 @@ def load_stopwords(string):
     return sw
 
 
-def load_data(path, subpath, nrows=100):
+def load_data(path, subpath, nrows=100, ignore=None, filt=None):
     print("Reading all data and labels")
     data_labels = []
     for subdir, dirs, files in os.walk(path):
         for file in files:
+            params = subdir.split("\\")
             if not(file.endswith(".py") or file.endswith(".txt")) \
-                    and (len(subdir.split("\\")) == 3 and subdir.split("\\")[2] == subpath):
-                with open(os.path.join(subdir, file), 'r', encoding='utf8') as f:
-                    data_labels.append([f.read(), subdir.split("\\")[1]])
+                    and (len(params) == 3 and params[2] == subpath):
+                if not((ignore is not None and params[1] in ignore) or
+                        (filt is not None and not filt.search(file))):
+                    with open(os.path.join(subdir, file), 'r', encoding='utf8') as f:
+                        data_labels.append([f.read(), params[1]])
     shuffle(data_labels)
     data_labels = data_labels[:nrows]
     data = [corpus for corpus, _ in data_labels]
@@ -58,7 +62,7 @@ def vectorize(data, stop_words, ngram_min, ngram_max):
     return x
 
 
-def plot_clusters(x, labels, dim, n_clusters):
+def plot_clusters(x, labels, dim, n_clusters, save=False):
     trunc = TruncatedSVD(n_components=dim)
     x = trunc.fit_transform(x)
     km = KMeans(n_clusters=n_clusters)
@@ -82,6 +86,10 @@ def plot_clusters(x, labels, dim, n_clusters):
             legends.append(l)
         plt.legend(handles=legends)
         plt.show()
+        if save:
+            if not os.path.exists("results/speech_clustering"):
+                os.makedirs("results/speech_clustering")
+            plt.savefig("results/speech_clustering/cluster_plot.png")
     elif dim == 3:
         plot = plt.figure()
         ax = Axes3D(plot)
@@ -95,11 +103,14 @@ def plot_clusters(x, labels, dim, n_clusters):
             legends.append(l)
         plot.legend(handles=legends)
         plot.show()
+        if save:
+            if not os.path.exists("results/speech_clustering"):
+                os.makedirs("results/speech_clustering")
+            plot.savefig("results/speech_clustering/cluster_plot.png")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate clusters")
-    # parser.add_argument("--encode", action='store_true')
     parser.add_argument("--oversampling", action='store_true')
     parser.add_argument("--undersampling", action='store_true')
     parser.add_argument("-stopwords", type=str, help="Path to stopwords", required=True)
@@ -108,11 +119,17 @@ if __name__ == '__main__':
     parser.add_argument("-ngram_min", type=int, help="Min range of n-gram", required=True)
     parser.add_argument("-ngram_max", type=int, help="Max range of n-gram", required=True)
     parser.add_argument("-dim", type=int, help="2 for 2D plot, 3 for 3D plot", required=True)
-    parser.add_argument("-nrows", type=int, help="Number of rows to use", required=True)
+    parser.add_argument("-nrows", type=int, help="Number of rows to use", required=False)
+    parser.add_argument("-ignore", type=str, help="CSV list with candidates (e.g. pinera,bachelet)", required=False)
+    parser.add_argument("-filter", type=str, help="Regex used to filter some texts", required=False)
+    parser.add_argument("--save", action='store_true')
 
     pargs = parser.parse_args()
     stopwords = load_stopwords(pargs.stopwords)
-    data, labels = load_data(pargs.data, pargs.subdata, pargs.nrows)
+    ignore = pargs.ignore.split(",") if pargs.ignore else None
+    nrows = pargs.nrows if pargs.nrows else 100
+    filt = re.compile(pargs.filter) if pargs.filter else None
+    data, labels = load_data(pargs.data, pargs.subdata, nrows, ignore, filt)
     unique, counts = np.unique(labels, return_counts=True)
     n_clusters = get_number_of_clusters(labels)
     ngram_min = pargs.ngram_min
@@ -125,4 +142,5 @@ if __name__ == '__main__':
         sampler = RandomUnderSampler()
         x, labels = sampler.fit_resample(x, labels)
     dim = pargs.dim
-    plot_clusters(x, labels, dim, n_clusters)
+    save = pargs.save
+    plot_clusters(x, labels, dim, n_clusters, save)
