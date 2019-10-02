@@ -58,7 +58,7 @@ def load_data(path, subpath, nrows=None, ignore=None, filt=None, oversampling=Fa
         for file in files:
 
             # Params es de la forma (dir, subdir, file)
-            params = subdir.split("\\")
+            params = subdir.replace("/", "\\").split("\\")[1:]
 
             # No se lee el archivo si:
             # * Esta en ignore
