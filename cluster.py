@@ -17,8 +17,8 @@ from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
-colors = np.array(["#1c3969", "#298294", "#177548", "#177522", "#4b8a1c", "#646e0c", "#695311",
-                   "#7a3f11", "#7a1111", "#521173", "red"])
+colors = np.array(["red", "blue", "green", "yellow", "purple", "pink", "orange",
+                   "black", "gray", "brown", "cyan"])
 
 
 def load_stopwords(string):
@@ -117,10 +117,10 @@ def vectorize(data, stop_words, ngram_min, ngram_max):
     print("Getting Bag Of Words")
     vectorizer = TfidfVectorizer(stop_words=stop_words, ngram_range=(ngram_min, ngram_max))
     x = vectorizer.fit_transform(data)
-    return x
+    return x, vectorizer
 
 
-def plot_clusters(x, labels, size, dim, n_clusters, cluster_type="kmeans", save=False):
+def plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type="kmeans", save=False):
     """
     Grafica los clusters.
     :param x:
@@ -131,10 +131,6 @@ def plot_clusters(x, labels, size, dim, n_clusters, cluster_type="kmeans", save=
     :param save:
     :return:
     """
-
-    # Traspasamos data a dos o tres dimensiones usando PCA
-    trunc = TruncatedSVD(n_components=dim)
-    x = trunc.fit_transform(x)
 
     # Elegimos el tipo de clustering
     if cluster_type == "mbkmeans":
@@ -160,6 +156,10 @@ def plot_clusters(x, labels, size, dim, n_clusters, cluster_type="kmeans", save=
     km.fit(x)
     # LB son los indices del cluster al que pertenece cada fila de datos
     lb = km.labels_
+
+    # Para plotear, traspasamos data a dos o tres dimensiones usando PCA
+    trunc = TruncatedSVD(n_components=dim)
+    x = trunc.fit_transform(x)
 
     # Como se hace mas de un plot a la vez, separamos la data por presidente
     data_dict = {}
@@ -217,6 +217,14 @@ def plot_clusters(x, labels, size, dim, n_clusters, cluster_type="kmeans", save=
                 os.makedirs("results/speech_clustering")
             plot.savefig("results/speech_clustering/{}.png".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
 
+    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+    terms = vectorizer.get_feature_names()
+    for i in range(n_clusters):
+        print("Cluster {}:".format(colors[i]), end='')
+        for ind in order_centroids[i, :10]:
+            print(' %s' % terms[ind], end='')
+        print()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate clusters")
@@ -249,7 +257,7 @@ if __name__ == '__main__':
     cluster_type = pargs.type if pargs.type else "kmeans"
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
-    x = vectorize(data, stopwords, ngram_min, ngram_max)
+    x, vectorizer = vectorize(data, stopwords, ngram_min, ngram_max)
     dim = pargs.dim
     save = pargs.save
-    plot_clusters(x, labels, size, dim, n_clusters, cluster_type, save)
+    plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type, save)
