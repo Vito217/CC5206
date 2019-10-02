@@ -100,7 +100,7 @@ def get_number_of_clusters(labels):
     :param labels:
     :return:
     """
-    print("Indexing labels")
+    print("Computing number of clusters")
     unique = np.unique(labels)
     return len(unique)
 
@@ -120,21 +120,22 @@ def vectorize(data, stop_words, ngram_min, ngram_max):
     return x, vectorizer
 
 
-def plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type="kmeans", save=False):
+def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans"):
     """
-    Grafica los clusters.
+    Muestra los terminos mas frecuentes por cluster
     :param x:
-    :param labels:
-    :param dim:
+    :param vectorizer:
+    :param its:
     :param n_clusters:
     :param cluster_type:
-    :param save:
     :return:
     """
 
+    print("Getting most frecuent terms per cluster")
+
     # Elegimos el tipo de clustering
     if cluster_type == "mbkmeans":
-        km = MiniBatchKMeans(n_clusters=n_clusters)
+        km = MiniBatchKMeans(n_clusters=n_clusters, n_init=its)
     elif cluster_type == "affprop":
         km = AffinityPropagation()
     elif cluster_type == "mshift":
@@ -150,16 +151,59 @@ def plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type="km
     elif cluster_type == "birch":
         km = Birch()
     else:
-        km = KMeans(n_clusters=n_clusters)
+        km = KMeans(n_clusters=n_clusters, n_init=its)
+
+    km.fit(x)
+    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+    terms = vectorizer.get_feature_names()
+    for i in range(n_clusters):
+        print("Cluster {}:".format(colors[i]), end='')
+        for ind in order_centroids[i, :10]:
+            print(' %s' % terms[ind], end='')
+        print()
+
+
+def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False):
+    """
+    Grafica los clusters.
+    :param x:
+    :param labels:
+    :param dim:
+    :param n_clusters:
+    :param cluster_type:
+    :param save:
+    :return:
+    """
+
+    print("Plotting Clusters")
+
+    # Elegimos el tipo de clustering
+    if cluster_type == "mbkmeans":
+        km = MiniBatchKMeans(n_clusters=n_clusters, n_init=its)
+    elif cluster_type == "affprop":
+        km = AffinityPropagation()
+    elif cluster_type == "mshift":
+        km = MeanShift()
+    elif cluster_type == "spec":
+        km = SpectralClustering()
+    elif cluster_type == "aggc":
+        km = AgglomerativeClustering()
+    elif cluster_type == "dbscan":
+        km = DBSCAN()
+    elif cluster_type == "optisc":
+        km = OPTICS()
+    elif cluster_type == "birch":
+        km = Birch()
+    else:
+        km = KMeans(n_clusters=n_clusters, n_init=its)
 
     # Se calculan los clusters. Los centroides se almacenan en km
-    km.fit(x)
-    # LB son los indices del cluster al que pertenece cada fila de datos
-    lb = km.labels_
-
-    # Para plotear, traspasamos data a dos o tres dimensiones usando PCA
     trunc = TruncatedSVD(n_components=dim)
     x = trunc.fit_transform(x)
+    km.fit(x)
+
+    # LB son los indices del cluster al que pertenece cada fila de datos
+    lb = km.labels_
 
     # Como se hace mas de un plot a la vez, separamos la data por presidente
     data_dict = {}
@@ -217,14 +261,6 @@ def plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type="km
                 os.makedirs("results/speech_clustering")
             plot.savefig("results/speech_clustering/{}.png".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
 
-    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-    terms = vectorizer.get_feature_names()
-    for i in range(n_clusters):
-        print("Cluster {}:".format(colors[i]), end='')
-        for ind in order_centroids[i, :10]:
-            print(' %s' % terms[ind], end='')
-        print()
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate clusters")
@@ -242,6 +278,7 @@ if __name__ == '__main__':
     parser.add_argument("-ignore", type=str, help="CSV list with candidates (e.g. pinera,bachelet)", required=False)
     parser.add_argument("-filter", type=str, help="Regex used to filter some texts", required=False)
     parser.add_argument("-nclusters", type=int, help="Number of clusters to use", required=False)
+    parser.add_argument("-iterations", type=int, help="Number of iterations", required=False)
     parser.add_argument("--save", action='store_true')
 
     pargs = parser.parse_args()
@@ -251,6 +288,7 @@ if __name__ == '__main__':
     filt = re.compile(pargs.filter) if pargs.filter else None
     over = True if pargs.oversampling else False
     under = True if pargs.undersampling else False
+    its = pargs.iterations if pargs.iterations else 10
     data, labels, size = load_data(pargs.data, pargs.subdata, nrows, ignore, filt,
                                    oversampling=over, undersampling=under)
     n_clusters = pargs.nclusters if (pargs.nclusters and pargs.nclusters >= 1) else get_number_of_clusters(labels)
@@ -260,4 +298,5 @@ if __name__ == '__main__':
     x, vectorizer = vectorize(data, stopwords, ngram_min, ngram_max)
     dim = pargs.dim
     save = pargs.save
-    plot_clusters(x, labels, size, vectorizer, dim, n_clusters, cluster_type, save)
+    clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type)
+    plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type, save)
