@@ -19,7 +19,8 @@ from datetime import datetime
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
 colors = np.array(["red", "blue", "green", "yellow", "purple", "pink", "orange",
-                   "black", "gray", "brown", "cyan"])
+                   "black", "gray", "brown", "cyan", "magenta", "rose", "#2B9847",
+                   "#03FEF6", "#7FF106", "#E50050", "#CDAB80", "#8C91B6", "#B68CB3"])
 
 
 def load_stopwords(string):
@@ -91,8 +92,8 @@ def load_data(path, subpath, nrows=None, ignore=None, filt=None, oversampling=Fa
             sampler = RandomUnderSampler()
         data, labels = sampler.fit_resample(np.reshape(data, (-1, 1)), np.reshape(labels, (-1, 1)))
         data, labels = np.reshape(data, (-1, )), np.reshape(labels, (-1, ))
-    size = np.reshape([len(text) for text in data], (-1, ))
-    return data, labels, (size / np.linalg.norm(size))*1000
+    size = [len(text) for text in data]
+    return data, labels, np.reshape(normalize(np.reshape(size, (-1, 1)), axis=0), (-1, ))*1000
 
 
 def get_number_of_clusters(labels):
@@ -141,27 +142,38 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         km = AffinityPropagation()
     elif cluster_type == "mshift":
         km = MeanShift()
-    elif cluster_type == "spec":
-        km = SpectralClustering()
-    elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
-    elif cluster_type == "dbscan":
-        km = DBSCAN()
-    elif cluster_type == "optisc":
-        km = OPTICS()
-    elif cluster_type == "birch":
-        km = Birch()
+        x = x.toarray()
+    # elif cluster_type == "spec":
+    #     km = SpectralClustering(n_clusters=n_clusters, n_init=its)
+    # elif cluster_type == "aggc":
+        # Jerarquico
+    #    km = AgglomerativeClustering(n_clusters=n_clusters)
+    #    x = x.toarray()
+    # elif cluster_type == "dbscan":
+    #    km = DBSCAN()
+    # elif cluster_type == "optisc":
+    #    km = OPTICS()
+    #    x = x.toarray()
+    # elif cluster_type == "birch":
+    #    km = Birch()
+
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
 
-    km.fit(x)
-    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-    terms = vectorizer.get_feature_names()
-    for i in range(n_clusters):
-        print("Cluster {}:".format(colors[i]), end='')
-        for ind in order_centroids[i, :10]:
-            print(' %s' % terms[ind], end='')
-        print()
+    if cluster_type not in ["spec", "aggc", "dbscan", "optisc", "birch"]:
+        km.fit(x)
+        lb = km.labels_
+        true_k = len(np.unique(lb))
+        if cluster_type in ["kmeans", "mbkmeans", "spec", "aggc", "mshift"]:
+            order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+        else:
+            order_centroids = km.cluster_centers_.toarray().argsort()[:, ::-1]
+        terms = vectorizer.get_feature_names()
+        for i in range(true_k):
+            print("Cluster {}:".format(colors[i]), end='')
+            for ind in order_centroids[i, :10]:
+                print(' %s' % terms[ind], end='')
+            print()
 
 
 def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False, trunc_method="SPCA"):
@@ -195,7 +207,7 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "optisc":
         km = OPTICS()
     elif cluster_type == "birch":
-        km = Birch(n_clusters=n_clusters)
+        km = Birch(n_clusters=n_clusters, threshold=0.1)
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
 
