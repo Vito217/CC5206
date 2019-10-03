@@ -3,6 +3,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import PCA as my_PCA
 
 from random import shuffle
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -163,7 +164,7 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         print()
 
 
-def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False):
+def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False, trunc_method="SPCA"):
     """
     Grafica los clusters.
     :param x:
@@ -185,21 +186,30 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "mshift":
         km = MeanShift()
     elif cluster_type == "spec":
-        km = SpectralClustering()
+        km = SpectralClustering(n_clusters=n_clusters, n_init=its)
     elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
+        # Jerarquico
+        km = AgglomerativeClustering(n_clusters=n_clusters)
     elif cluster_type == "dbscan":
         km = DBSCAN()
     elif cluster_type == "optisc":
         km = OPTICS()
     elif cluster_type == "birch":
-        km = Birch()
+        km = Birch(n_clusters=n_clusters)
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
 
     # Se calculan los clusters. Los centroides se almacenan en km
-    trunc = TruncatedSVD(n_components=dim)
-    x = trunc.fit_transform(x)
+    if trunc_method == "SPCA" or trunc_method == "TSVD":
+        if trunc_method == "SPCA":
+            trunc = PCA(n_components=dim)
+            x = x.toarray()
+        else:
+            trunc = TruncatedSVD(n_components=dim)
+        x = trunc.fit_transform(x)
+    else:
+        x = my_PCA.pca(x, dim)
+
     km.fit(x)
 
     # LB son los indices del cluster al que pertenece cada fila de datos
@@ -279,6 +289,7 @@ if __name__ == '__main__':
     parser.add_argument("-filter", type=str, help="Regex used to filter some texts", required=False)
     parser.add_argument("-nclusters", type=int, help="Number of clusters to use", required=False)
     parser.add_argument("-iterations", type=int, help="Number of iterations", required=False)
+    parser.add_argument("-trunc_method", type=str, help="PCA, SPCA (Scikit-learn PCA) or TSVD", required=False)
     parser.add_argument("--save", action='store_true')
 
     pargs = parser.parse_args()
@@ -293,10 +304,11 @@ if __name__ == '__main__':
                                    oversampling=over, undersampling=under)
     n_clusters = pargs.nclusters if (pargs.nclusters and pargs.nclusters >= 1) else get_number_of_clusters(labels)
     cluster_type = pargs.type if pargs.type else "kmeans"
+    trunc_method = pargs.trunc_method if pargs.trunc_method else "SPCA"
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
     x, vectorizer = vectorize(data, stopwords, ngram_min, ngram_max)
     dim = pargs.dim
     save = pargs.save
     clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type)
-    plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type, save)
+    plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type, save, trunc_method)
