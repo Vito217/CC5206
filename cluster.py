@@ -162,23 +162,33 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
     # Elegimos el tipo de clustering
     if cluster_type == "mbkmeans":
         km = MiniBatchKMeans(n_clusters=n_clusters, n_init=its)
+        title = "MINI BATCH KMEANS----------------------------------------------------------"
     elif cluster_type == "affprop":
         km = AffinityPropagation()
+        title = "AFFINITY PROPAGATION-------------------------------------------------------"
     elif cluster_type == "mshift":
         km = MeanShift()
+        title = "MEAN SHIFT-----------------------------------------------------------------"
     elif cluster_type == "spec":
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
+        title = "SPECTRAL-------------------------------------------------------------------"
     elif cluster_type == "aggc":
         km = AgglomerativeClustering()
+        title = "AGGLOMERATIVE--------------------------------------------------------------"
     elif cluster_type == "dbscan":
         km = DBSCAN()
+        title = "DBSCAN---------------------------------------------------------------------"
     elif cluster_type == "optisc":
         km = OPTICS()
+        title = "OPTICS---------------------------------------------------------------------"
     elif cluster_type == "birch":
         km = Birch()
+        title = "BIRCH----------------------------------------------------------------------"
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
+        title = "KMEANS---------------------------------------------------------------------"
 
+    print(title)
     km.fit(x.toarray())
     lb = km.labels_
     true_k = len(np.unique(lb))
@@ -268,6 +278,7 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     # Si el grafico es en 2D
     if dim == 2:
 
+        plt.figure()
         # Iteramos y hacemos un plot por cada presidente
         for key in data_dict.keys():
             x = [row[0] for row in data_dict[key]['data']]
@@ -320,7 +331,7 @@ if __name__ == '__main__':
     parser.add_argument("-ngram_min", type=int, help="Min range of n-gram", required=True)
     parser.add_argument("-ngram_max", type=int, help="Max range of n-gram", required=True)
     parser.add_argument("-dim", type=int, help="2 for 2D plot, 3 for 3D plot", required=True)
-    parser.add_argument("-type", type=str, help="kmeans, mbkmeans, affprop, mshift, spec, aggc, dbscan, optics, birch",
+    parser.add_argument("-type", type=str, help="List of methods (e.g. kmeans,aggc,dbscan)",
                         required=False)
     parser.add_argument("-nrows", type=int, help="Number of rows to use", required=False)
     parser.add_argument("-ignore", type=str, help="CSV list with candidates (e.g. pinera,bachelet)", required=False)
@@ -341,12 +352,13 @@ if __name__ == '__main__':
     data, labels, size = load_data(pargs.data, pargs.subdata, nrows, ignore, filt,
                                    oversampling=over, undersampling=under)
     n_clusters = pargs.nclusters if (pargs.nclusters and pargs.nclusters >= 1) else get_number_of_clusters(labels)
-    cluster_type = pargs.type if pargs.type else "kmeans"
+    cluster_type = pargs.type.split(",") if pargs.type else ["kmeans"]
     trunc_method = pargs.trunc_method if pargs.trunc_method else "SPCA"
     ngram_min = pargs.ngram_min
     ngram_max = pargs.ngram_max
     x, vectorizer = vectorize(data, stopwords, ngram_min, ngram_max)
     dim = pargs.dim
     save = pargs.save
-    clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type)
-    plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type, save, trunc_method)
+    for method in cluster_type:
+        clusters_frecuent_terms(x, vectorizer, its, n_clusters, method)
+        plot_clusters(x, labels, size, dim, its, n_clusters, method, save, trunc_method)
