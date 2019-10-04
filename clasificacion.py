@@ -7,9 +7,9 @@ from sklearn import decomposition, ensemble
 import pandas, numpy, string
 
 # load the dataset
-data = open('sentenceClustering/unionssplit.csv').read()
+data = open('sentenceClustering/unionssplit.csv', encoding="utf-8").read()
 labels, texts = [], []
-president_comparate=['bachelet', 'pinera','fernandez']
+president_comparate=['bachelet', 'pinera','allende','macri']
 for i, line in enumerate(data.split("\n")):
     content = line.split(",",1)
     president = content[0]
@@ -84,3 +84,15 @@ print( "NB, N-Gram Vectors: ", accuracy)
 # Naive Bayes on Character Level TF IDF Vectors
 #accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf_ngram_chars, train_y, xvalid_tfidf_ngram_chars)
 #print ("NB, CharLevel Vectors: ", accuracy)
+
+# Linear Classifier on Count Vectors
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_count, train_y, xvalid_count)
+print("LR, Count Vectors: ", accuracy)
+
+# Linear Classifier on Word Level TF IDF Vectors
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf, train_y, xvalid_tfidf)
+print("LR, WordLevel TF-IDF: ", accuracy)
+
+# Linear Classifier on Ngram Level TF IDF Vectors
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
+print("LR, N-Gram Vectors: ", accuracy)
