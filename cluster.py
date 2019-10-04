@@ -20,7 +20,7 @@ from datetime import datetime
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
 colors = np.array(["red", "blue", "green", "yellow", "purple", "pink", "orange",
-                   "black", "gray", "brown", "cyan", "magenta", "rose"])
+                   "black", "gray", "brown", "cyan", "magenta"])
 
 
 def load_stopwords(string):
