@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import PCA as my_PCA
+import random as rand
 
 from random import shuffle
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -13,14 +14,13 @@ from sklearn.cluster import KMeans, MiniBatchKMeans, AffinityPropagation, MeanSh
     AgglomerativeClustering, DBSCAN, OPTICS, Birch
 from nltk.corpus import stopwords
 from mpl_toolkits.mplot3d import Axes3D
-from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from datetime import datetime
 
 markers = ["o", "v", "^", "<", ">", "s", "p", "P", "*", "h", "+", "X", "d", "1", "2", "3", "4"]
 colors = np.array(["red", "blue", "green", "yellow", "purple", "pink", "orange",
-                   "black", "gray", "brown", "cyan", "magenta", "rose", "#2B9847",
-                   "#03FEF6", "#7FF106", "#E50050", "#CDAB80", "#8C91B6", "#B68CB3"])
+                   "black", "gray", "brown", "cyan", "magenta", "rose"])
 
 
 def load_stopwords(string):
@@ -122,6 +122,30 @@ def vectorize(data, stop_words, ngram_min, ngram_max):
     return x, vectorizer
 
 
+def compute_centroids(x, lb):
+    """
+    Computa los centroides de cada cluster
+    :param x:
+    :param lb:
+    :return:
+    """
+
+    clusters_dict = {}
+    for c in np.unique(lb):
+        clusters_dict[c] = []
+    for i in range(len(x)):
+        clusters_dict[lb[i]].append(x[i])
+    centroids = None
+    for cluster in clusters_dict.keys():
+        centroid = np.mean(clusters_dict[cluster], axis=0)
+        if centroids is None:
+            centroids = np.array([centroid])
+        else:
+            centroids = np.append(centroids, [centroid], axis=0)
+
+    return centroids
+
+
 def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans"):
     """
     Muestra los terminos mas frecuentes por cluster
@@ -142,38 +166,41 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         km = AffinityPropagation()
     elif cluster_type == "mshift":
         km = MeanShift()
-        x = x.toarray()
-    # elif cluster_type == "spec":
-    #     km = SpectralClustering(n_clusters=n_clusters, n_init=its)
-    # elif cluster_type == "aggc":
-        # Jerarquico
-    #    km = AgglomerativeClustering(n_clusters=n_clusters)
-    #    x = x.toarray()
-    # elif cluster_type == "dbscan":
-    #    km = DBSCAN()
-    # elif cluster_type == "optisc":
-    #    km = OPTICS()
-    #    x = x.toarray()
-    # elif cluster_type == "birch":
-    #    km = Birch()
-
+    elif cluster_type == "spec":
+        km = SpectralClustering(n_clusters=n_clusters, n_init=its)
+    elif cluster_type == "aggc":
+        km = AgglomerativeClustering()
+    elif cluster_type == "dbscan":
+        km = DBSCAN()
+    elif cluster_type == "optisc":
+        km = OPTICS()
+    elif cluster_type == "birch":
+        km = Birch()
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
 
+    km.fit(x.toarray())
+    lb = km.labels_
+    true_k = len(np.unique(lb))
     if cluster_type not in ["spec", "aggc", "dbscan", "optisc", "birch"]:
-        km.fit(x)
-        lb = km.labels_
-        true_k = len(np.unique(lb))
-        if cluster_type in ["kmeans", "mbkmeans", "spec", "aggc", "mshift"]:
-            order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+        order_centroids = km.cluster_centers_
+        if cluster_type not in ["kmeans", "mbkmeans", "spec", "aggc", "mshift"]:
+            order_centroids = order_centroids.toarray()
+    else:
+        order_centroids = compute_centroids(x.toarray(), lb)
+    order_centroids = order_centroids.argsort()[:, ::-1]
+    global colors
+    terms = vectorizer.get_feature_names()
+    for i in range(true_k):
+        if i < colors.shape[0]:
+            color = colors[i]
         else:
-            order_centroids = km.cluster_centers_.toarray().argsort()[:, ::-1]
-        terms = vectorizer.get_feature_names()
-        for i in range(true_k):
-            print("Cluster {}:".format(colors[i]), end='')
-            for ind in order_centroids[i, :10]:
-                print(' %s' % terms[ind], end='')
-            print()
+            color = '#%02X%02X%02X' % (rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255))
+            colors = np.append(colors, np.array([color]))
+        print("Cluster {}:".format(color), end='')
+        for ind in order_centroids[i, :10]:
+            print(' %s' % terms[ind], end='')
+        print()
 
 
 def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False, trunc_method="SPCA"):
@@ -200,8 +227,7 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "spec":
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
     elif cluster_type == "aggc":
-        # Jerarquico
-        km = AgglomerativeClustering(n_clusters=n_clusters)
+        km = AgglomerativeClustering()
     elif cluster_type == "dbscan":
         km = DBSCAN()
     elif cluster_type == "optisc":
