@@ -146,7 +146,29 @@ def compute_centroids(x, lb):
     return centroids
 
 
-def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans"):
+def get_eps_and_samples(x, k):
+    """
+
+    :param x:
+    :param k:
+    :return:
+    """
+
+    arr = np.empty((x.shape[0], 1))
+    for i in range(x.shape[0]):
+        substract = x - x[i]
+        square = np.square(substract)
+        sum = np.sum(square, axis=1)
+        distances = np.sqrt(sum)
+        distances = np.sort(distances)
+        arr[i] = distances[k]
+    arr = np.sort(arr, axis=0)
+    plt.figure()
+    plt.plot(arr)
+    plt.show()
+
+
+def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans", k_neigh=10):
     """
     Muestra los terminos mas frecuentes por cluster
     :param x:
@@ -176,7 +198,7 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         km = AgglomerativeClustering()
         title = "AGGLOMERATIVE--------------------------------------------------------------"
     elif cluster_type == "dbscan":
-        km = DBSCAN()
+        km = DBSCAN(eps=0.1, min_samples=k_neigh)
         title = "DBSCAN---------------------------------------------------------------------"
     elif cluster_type == "optisc":
         km = OPTICS()
@@ -191,7 +213,8 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
     print(title)
     km.fit(x.toarray())
     lb = km.labels_
-    true_k = len(np.unique(lb))
+    true_k = np.unique(lb).shape[0]
+    print(true_k)
     if cluster_type not in ["spec", "aggc", "dbscan", "optisc", "birch"]:
         order_centroids = km.cluster_centers_
         if cluster_type not in ["kmeans", "mbkmeans", "spec", "aggc", "mshift"]:
@@ -213,7 +236,8 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         print()
 
 
-def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False, trunc_method="SPCA"):
+def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", save=False, trunc_method="SPCA",
+                  k_neigh=10):
     """
     Grafica los clusters.
     :param x:
@@ -227,6 +251,17 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
 
     print("Plotting Clusters")
 
+    # Se calculan los clusters. Los centroides se almacenan en km
+    if trunc_method == "SPCA" or trunc_method == "TSVD":
+        if trunc_method == "SPCA":
+            trunc = PCA(n_components=dim)
+            x = x.toarray()
+        else:
+            trunc = TruncatedSVD(n_components=dim)
+        x = trunc.fit_transform(x)
+    else:
+        x = my_PCA.pca(x, dim)
+
     # Elegimos el tipo de clustering
     if cluster_type == "mbkmeans":
         km = MiniBatchKMeans(n_clusters=n_clusters, n_init=its)
@@ -239,7 +274,8 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "aggc":
         km = AgglomerativeClustering()
     elif cluster_type == "dbscan":
-        km = DBSCAN()
+        get_eps_and_samples(x, k_neigh)
+        km = DBSCAN(eps=0.1, min_samples=k_neigh)
     elif cluster_type == "optisc":
         km = OPTICS()
     elif cluster_type == "birch":
@@ -247,30 +283,20 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     else:
         km = KMeans(n_clusters=n_clusters, n_init=its)
 
-    # Se calculan los clusters. Los centroides se almacenan en km
-    if trunc_method == "SPCA" or trunc_method == "TSVD":
-        if trunc_method == "SPCA":
-            trunc = PCA(n_components=dim)
-            x = x.toarray()
-        else:
-            trunc = TruncatedSVD(n_components=dim)
-        x = trunc.fit_transform(x)
-    else:
-        x = my_PCA.pca(x, dim)
-
-    km.fit(x)
-
     # LB son los indices del cluster al que pertenece cada fila de datos
+    km.fit(x)
     lb = km.labels_
 
     # Como se hace mas de un plot a la vez, separamos la data por presidente
     data_dict = {}
+    marker_ind = 0
     for i in range(len(x)):
 
         # Se le asigna un marcador y se guarda una lista de sus discursos y su respectivo cluster
         label = labels[i]
         if label not in data_dict:
-            data_dict[label] = {'data': [], 'clusters': [], 'sizes': [], 'marker': markers.pop(0)}
+            data_dict[label] = {'data': [], 'clusters': [], 'sizes': [], 'marker': markers[marker_ind]}
+            marker_ind += 1
         data_dict[label]['data'].append(x[i])
         data_dict[label]['clusters'].append(lb[i])
         data_dict[label]['sizes'].append(size[i])
