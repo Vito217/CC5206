@@ -6,3 +6,6 @@ sklearn
 pandas
 wordcloud
 nltk
+gensim
+spacy
+pyldavis
