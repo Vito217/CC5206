@@ -1,6 +1,6 @@
 #codigo basado en:
 #https://www.analyticsvidhya.com/blog/2018/04/a-comprehensive-guide-to-understand-and-implement-text-classification-in-python/
-from sklearn import model_selection, preprocessing, linear_model, naive_bayes, metrics, svm
+from sklearn import model_selection, preprocessing, linear_model, naive_bayes, metrics, svm, dummy
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn import decomposition, ensemble
 
@@ -9,7 +9,8 @@ import pandas, numpy, string
 # load the dataset
 data = open('sentenceClustering/unionssplit.csv', encoding="utf-8").read()
 labels, texts = [], []
-president_comparate=['bachelet', 'pinera','allende','macri']
+president_comparate=['bachelet', 'pinera', 'fernandez']
+derecha_comparate=['pinera',]
 for i, line in enumerate(data.split("\n")):
     content = line.split(",",1)
     president = content[0]
@@ -56,6 +57,8 @@ print("ngram level tf-idf")
 #xtrain_tfidf_ngram_chars =  tfidf_vect_ngram_chars.transform(train_x)
 #xvalid_tfidf_ngram_chars =  tfidf_vect_ngram_chars.transform(valid_x)
 
+#def train_dummy_model()
+
 
 def train_model(classifier, feature_vector_train, label, feature_vector_valid, is_neural_net=False):
     # fit the training dataset on the classifier
@@ -67,32 +70,33 @@ def train_model(classifier, feature_vector_train, label, feature_vector_valid, i
     if is_neural_net:
         predictions = predictions.argmax(axis=-1)
 
-    return metrics.accuracy_score(predictions, valid_y)
+    return metrics.classification_report(predictions, valid_y)
 
-# Naive Bayes on Count Vectors
+# # Dummy Classifier, Naive Bayes and Linear Classifier on Count Vectors
+accuracy = train_model(dummy.DummyClassifier(), xtrain_count, train_y, xvalid_count)
+print("DummyClassifier,Count Vectors :\n", accuracy)
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_count, train_y, xvalid_count)
-print( "NB, Count Vectors: ", accuracy)
+print( "NB, Count Vectors: \n", accuracy)
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_count, train_y, xvalid_count)
+print("LR, Count Vectors: \n", accuracy)
 
-# Naive Bayes on Word Level TF IDF Vectors
+
+# Dummy Classifier, Naive Bayes and Linear Classifier on Word Level TF IDF Vectors
+accuracy = train_model(dummy.DummyClassifier(), xtrain_tfidf, train_y, xvalid_tfidf)
+print("DummyClassifier,WordLevel TF-IDD :\n", accuracy)
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf, train_y, xvalid_tfidf)
-print ("NB, WordLevel TF-IDF: ", accuracy)
+print ("NB, WordLevel TF-IDF: \n", accuracy)
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf, train_y, xvalid_tfidf)
+print("LR, WordLevel TF-IDF: \n", accuracy)
 
-# Naive Bayes on Ngram Level TF IDF Vectors
+
+# Dummy Classifier, Naive Bayes and Linear Classifier on Ngram Level TF IDF Vectors
+accuracy = train_model(dummy.DummyClassifier(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
+print("DummyClassifier,N-Gram Vectors :\n", accuracy)
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
-print( "NB, N-Gram Vectors: ", accuracy)
-
+print( "NB, N-Gram Vectors: \n", accuracy)
+accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
+print("LR, N-Gram Vectors: \n", accuracy)
 # Naive Bayes on Character Level TF IDF Vectors
 #accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf_ngram_chars, train_y, xvalid_tfidf_ngram_chars)
 #print ("NB, CharLevel Vectors: ", accuracy)
-
-# Linear Classifier on Count Vectors
-accuracy = train_model(linear_model.LogisticRegression(), xtrain_count, train_y, xvalid_count)
-print("LR, Count Vectors: ", accuracy)
-
-# Linear Classifier on Word Level TF IDF Vectors
-accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf, train_y, xvalid_tfidf)
-print("LR, WordLevel TF-IDF: ", accuracy)
-
-# Linear Classifier on Ngram Level TF IDF Vectors
-accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf_ngram, train_y, xvalid_tfidf_ngram)
-print("LR, N-Gram Vectors: ", accuracy)
