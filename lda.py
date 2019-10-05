@@ -1,6 +1,7 @@
 #https://www.machinelearningplus.com/nlp/topic-modeling-gensim-python/
 #https://nbviewer.ipython.org/github/bmabey/pyLDAvis/blob/master/notebooks/Gensim%20Newsgroup.ipynb
 #python -m spacy download es_core_news_sm
+#https://towardsdatascience.com/topic-modelling-in-python-with-nltk-and-gensim-4ef03213cd21
 from nltk.corpus import stopwords
 import spacy
 import os
@@ -133,4 +134,4 @@ coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dic
 coherence_lda = coherence_model_lda.get_coherence()
 print('\nCoherence Score: ', coherence_lda)
 vis = pyLDAvis.gensim.prepare(lda_model, corpus, id2word)
-pyLDAvis.show(vis)
+pyLDAvis.display(vis)##arreglar
