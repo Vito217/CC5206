@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import PCA as my_PCA
 import random as rand
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 
 from random import shuffle
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -195,7 +196,7 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
         title = "SPECTRAL-------------------------------------------------------------------"
     elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
+        km = AgglomerativeClustering(n_clusters=n_clusters)
         title = "AGGLOMERATIVE--------------------------------------------------------------"
     elif cluster_type == "dbscan":
         km = DBSCAN(eps=0.1, min_samples=k_neigh)
@@ -272,7 +273,7 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "spec":
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
     elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
+        km = AgglomerativeClustering(n_clusters=n_clusters)
     elif cluster_type == "dbscan":
         get_eps_and_samples(x, k_neigh)
         km = DBSCAN(eps=0.1, min_samples=k_neigh)
@@ -286,6 +287,13 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     # LB son los indices del cluster al que pertenece cada fila de datos
     km.fit(x)
     lb = km.labels_
+    dendograma = False
+    if cluster_type == "aggc":
+        if dendograma:
+            data = km.children_
+            Z = linkage(data)
+            dendrogram(Z,p=n_clusters,labels=lb, truncate_mode='lastp',get_leaves=True, count_sort='ascending')  
+
 
     # Como se hace mas de un plot a la vez, separamos la data por presidente
     data_dict = {}
