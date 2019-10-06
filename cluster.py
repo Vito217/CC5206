@@ -353,7 +353,7 @@ if __name__ == '__main__':
     parser.add_argument("--undersampling", action='store_true')
     parser.add_argument("-stopwords", type=str, help="Path to stopwords, or english or spanish", required=True)
     parser.add_argument("-data", type=str, help="Path to dataset. Every folder name is the label.", required=True)
-    parser.add_argument("-subdata", type=str, help="Subdata available: raw, anio, anio_mes", required=True)
+    parser.add_argument("-subdata", type=str, help="Subdata available: raw, anio, anio_mes, merge", required=True)
     parser.add_argument("-ngram_min", type=int, help="Min range of n-gram", required=True)
     parser.add_argument("-ngram_max", type=int, help="Max range of n-gram", required=True)
     parser.add_argument("-dim", type=int, help="2 for 2D plot, 3 for 3D plot", required=True)
