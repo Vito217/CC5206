@@ -5,16 +5,21 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn import decomposition, ensemble
 
 import pandas, numpy, string
-
+#presidents = ['pinera', 'bachelet', 'allende', 'macri', 'kirchner', 'fernandez']
 # load the dataset
 data = open('sentenceClustering/unionssplit.csv', encoding="utf-8").read()
 labels, texts = [], []
-president_comparate=['bachelet', 'pinera', 'fernandez']
-derecha_comparate=['pinera',]
+president_comparate=['fernandez', 'allende']
+hombre_comparate=['pinera','macri']
 for i, line in enumerate(data.split("\n")):
     content = line.split(",",1)
     president = content[0]
     if president in president_comparate:
+        president = "mujer"
+        labels.append(president)
+        texts.append(" ".join(content[1:]))
+    if president in hombre_comparate:
+        president = "hombre"
         labels.append(president)
         texts.append(" ".join(content[1:]))
 # create a dataframe using texts and lables
@@ -83,7 +88,7 @@ print("LR, Count Vectors: \n", accuracy)
 
 # Dummy Classifier, Naive Bayes and Linear Classifier on Word Level TF IDF Vectors
 accuracy = train_model(dummy.DummyClassifier(), xtrain_tfidf, train_y, xvalid_tfidf)
-print("DummyClassifier,WordLevel TF-IDD :\n", accuracy)
+print("DummyClassifier,WordLevel TF-IDF :\n", accuracy)
 accuracy = train_model(naive_bayes.MultinomialNB(), xtrain_tfidf, train_y, xvalid_tfidf)
 print ("NB, WordLevel TF-IDF: \n", accuracy)
 accuracy = train_model(linear_model.LogisticRegression(), xtrain_tfidf, train_y, xvalid_tfidf)
