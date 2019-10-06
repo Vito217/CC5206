@@ -5,7 +5,8 @@
 from nltk.corpus import stopwords
 import spacy
 import os
-
+import csv
+import sys
 # Gensim
 import gensim
 import gensim.corpora as corpora
@@ -34,104 +35,118 @@ def load_stopwords(string):
     else:
         sw = stopwords.words(string)
     return sw
-stop_words = load_stopwords('stopwords_es_test.txt')
+def lda(president):
+    stop_words = load_stopwords('stopwords_es_test.txt')
 
-content=[]
-df = open('sentenceClustering/allende_ssplit.csv', encoding="utf-8").read()
-for i, line in enumerate(df.split("\n")):
-    if i in [0,1]:
-        continue
-    row = line.split(",",1)
-    if len(row)>1:
-        content.append(row[1])
-    else:
-        print(row)
-data = content
-print(data[0])
-def sent_to_words(sentences):
-    for sentence in sentences:
-        yield(gensim.utils.simple_preprocess(str(sentence), deacc=True))  # deacc=True removes punctuations
+    content = []
+    # https://stackoverflow.com/questions/15063936/csv-error-field-larger-than-field-limit-131072
+    data = []
+    with open('data/csv/union.csv') as csvfile:
+        maxInt = sys.maxsize
+        while True:
+            # decrease the maxInt value by factor 10
+            # as long as the OverflowError occurs.
 
-data_words = list(sent_to_words(data))
-# Build the bigram and trigram models
-bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100) # higher threshold fewer phrases.
-trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
+            try:
+                csv.field_size_limit(maxInt)
+                break
+            except OverflowError:
+                maxInt = int(maxInt / 10)
+        readCSV = csv.DictReader(csvfile)
+        for row in readCSV:
+            if row['president'] == president:
+                content = str(row['content']).lower()
+                data.append(content)
+    print(data[0])
 
-# Faster way to get a sentence clubbed as a trigram/bigram
-bigram_mod = gensim.models.phrases.Phraser(bigram)
-trigram_mod = gensim.models.phrases.Phraser(trigram)
+    def sent_to_words(sentences):
+        for sentence in sentences:
+            yield (gensim.utils.simple_preprocess(str(sentence), deacc=True))  # deacc=True removes punctuations
 
-# See trigram example
-print(trigram_mod[bigram_mod[data_words[0]]])
-# Define functions for stopwords, bigrams, trigrams and lemmatization
-def remove_stopwords(texts):
-    return [[word for word in simple_preprocess(str(doc)) if word not in stop_words] for doc in texts]
+    data_words = list(sent_to_words(data))
+    # Build the bigram and trigram models
+    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
 
-def make_bigrams(texts):
-    return [bigram_mod[doc] for doc in texts]
+    # Faster way to get a sentence clubbed as a trigram/bigram
+    bigram_mod = gensim.models.phrases.Phraser(bigram)
+    trigram_mod = gensim.models.phrases.Phraser(trigram)
 
-def make_trigrams(texts):
-    return [trigram_mod[bigram_mod[doc]] for doc in texts]
+    # See trigram example
+    print(trigram_mod[bigram_mod[data_words[0]]])
 
-def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
-    """https://spacy.io/api/annotation"""
-    texts_out = []
-    for sent in texts:
-        doc = nlp(" ".join(sent))
-        texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
-    return texts_out
+    # Define functions for stopwords, bigrams, trigrams and lemmatization
+    def remove_stopwords(texts):
+        return [[word for word in simple_preprocess(str(doc)) if word not in stop_words] for doc in texts]
 
-# Remove Stop Words
-data_words_nostops = remove_stopwords(data_words)
+    def make_bigrams(texts):
+        return [bigram_mod[doc] for doc in texts]
 
-# Form Bigrams
-data_words_bigrams = make_bigrams(data_words_nostops)
+    def make_trigrams(texts):
+        return [trigram_mod[bigram_mod[doc]] for doc in texts]
 
-# Initialize spacy 'en' model, keeping only tagger component (for efficiency)
-# python3 -m spacy download en
-#nlp = spacy.load('en', disable=['parser', 'ner'])
+    def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+        """https://spacy.io/api/annotation"""
+        texts_out = []
+        for sent in texts:
+            doc = nlp(" ".join(sent))
+            texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
+        return texts_out
 
-# Do lemmatization keeping only noun, adj, vb, adv
-data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+    # Remove Stop Words
+    data_words_nostops = remove_stopwords(data_words)
 
-print(data_lemmatized[:1])
+    # Form Bigrams
+    data_words_bigrams = make_bigrams(data_words_nostops)
 
-# Create Dictionary
-id2word = corpora.Dictionary(data_lemmatized)
+    # Initialize spacy 'en' model, keeping only tagger component (for efficiency)
+    # python3 -m spacy download en
+    # nlp = spacy.load('en', disable=['parser', 'ner'])
 
-# Create Corpus
-texts = data_lemmatized
+    # Do lemmatization keeping only noun, adj, vb, adv
+    data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
 
-# Term Document Frequency
-corpus = [id2word.doc2bow(text) for text in texts]
+    print(data_lemmatized[:1])
 
-# View
-print(corpus[:1])
+    # Create Dictionary
+    id2word = corpora.Dictionary(data_lemmatized)
 
-print(id2word[0])
-corpora.MmCorpus.serialize('newsgroups.mm', corpus)
-id2word.save('newsgroups.dict')
-print([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]])
+    # Create Corpus
+    texts = data_lemmatized
 
-# Build LDA model
-lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
-                                           id2word=id2word,
-                                           num_topics=20,
-                                           random_state=100,
-                                           update_every=1,
-                                           chunksize=100,
-                                           passes=10,
-                                           alpha='auto',
-                                           per_word_topics=True)
-lda_model.save('newsgroups_50_lda.model')
-print(lda_model.print_topics())
-doc_lda = lda_model[corpus]
-# Compute Perplexity
-print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how good the model is. lower the better.
+    # Term Document Frequency
+    corpus = [id2word.doc2bow(text) for text in texts]
 
-# Compute Coherence Score
-coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
-coherence_lda = coherence_model_lda.get_coherence()
-print('\nCoherence Score: ', coherence_lda)
-vis = pyLDAvis.gensim.prepare(lda_model, corpus, id2word)
-pyLDAvis.display(vis)##arreglar
+    # View
+    print(corpus[:1])
+
+    print(id2word[0])
+    # corpora.MmCorpus.serialize('newsgroups.mm', corpus)
+    # id2word.save('newsgroups.dict')
+    print([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]])
+
+    # Build LDA model
+    lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
+                                                id2word=id2word,
+                                                num_topics=10,
+                                                random_state=100,
+                                                update_every=1,
+                                                chunksize=100,
+                                                passes=10,
+                                                alpha='auto',
+                                                per_word_topics=True)
+    # lda_model.save('newsgroups_50_lda.model')
+    print(lda_model.print_topics())
+    doc_lda = lda_model[corpus]
+    # Compute Perplexity
+    print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how good the model is. lower the better.
+
+    # Compute Coherence Score
+    coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
+    coherence_lda = coherence_model_lda.get_coherence()
+    print('\nCoherence Score: ', coherence_lda)
+    vis = pyLDAvis.gensim.prepare(lda_model, corpus, id2word)
+    pyLDAvis.save_html(vis, president + '.html')
+presidents = ['pinera', 'bachelet', 'allende', 'macri', 'kirchner', 'fernandez']
+for president in presidents:
+    lda(president)
