@@ -1,6 +1,7 @@
 import csv
 import sys
 import string
+import re
 presidents = ['pinera', 'bachelet', 'allende', 'macri', 'kirchner', 'fernandez']
 
 with open('data/csv/union.csv', 'w', encoding="utf-8") as csvfile:
@@ -14,9 +15,13 @@ with open('data/csv/union.csv', 'w', encoding="utf-8") as csvfile:
             for row in readCSV:
                 content = str(row['content']).lower()
                 if president=='bachelet':
-                    if content.find('(traducción)'):
-                        t1=content.split('(traducción)',1)
-                        if len(t1)>=2:
+                    if re.search(r'\b'+ re.escape('traducción'),content):
+                        t1=content.split('traducción',1)
+                        if len(t1)==2:
+                            content=t1[1]
+                    if re.search(r'\b'+ re.escape('people'),content):
+                        t1 = content.split('* * * * *', 1)
+                        if len(t1)==2:
                             content=t1[1]
                 translator = str.maketrans('', '', string.punctuation)
                 content.translate(translator)
