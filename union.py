@@ -1,9 +1,10 @@
 import csv
 import sys
 import string
+import re
 presidents = ['pinera', 'bachelet', 'allende', 'macri', 'kirchner', 'fernandez']
 
-with open('data/csv/union.csv', 'w') as csvfile:
+with open('data/csv/union.csv', 'w', encoding="utf-8") as csvfile:
     fieldnames = ['president', 'size','count', 'title', 'date', 'content']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
@@ -12,8 +13,16 @@ with open('data/csv/union.csv', 'w') as csvfile:
         with open("data/csv/"+president + '.csv') as csvfile:
             readCSV = csv.DictReader(csvfile)
             for row in readCSV:
-                content=str(row['content']).lower()
-                print(content)
+                content = str(row['content']).lower()
+                if president=='bachelet':
+                    if re.search(r'\b'+ re.escape('traducción'),content):
+                        t1=content.split('traducción',1)
+                        if len(t1)==2:
+                            content=t1[1]
+                    if re.search(r'\b'+ re.escape('people'),content):
+                        t1 = content.split('* * * * *', 1)
+                        if len(t1)==2:
+                            content=t1[1]
                 translator = str.maketrans('', '', string.punctuation)
                 content.translate(translator)
                 writer.writerow(

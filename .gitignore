@@ -1,4 +1,11 @@
 venv
+mallet-2.0.8.zip
+mallet-2.0.8
+topic_modeling_Gensim.ipynb
+raw
+data/text/bachelet/ingles.txt
+data/text/bachelet/raw_esp
+data/text/bachelet/raw_en
 .idea
 # Byte-compiled / optimized / DLL files
 __pycache__/
