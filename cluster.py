@@ -195,7 +195,7 @@ def clusters_frecuent_terms(x, vectorizer, its, n_clusters, cluster_type="kmeans
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
         title = "SPECTRAL-------------------------------------------------------------------"
     elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
+        km = AgglomerativeClustering(n_clusters=n_clusters)
         title = "AGGLOMERATIVE--------------------------------------------------------------"
     elif cluster_type == "dbscan":
         km = DBSCAN(eps=0.1, min_samples=k_neigh)
@@ -272,7 +272,7 @@ def plot_clusters(x, labels, size, dim, its, n_clusters, cluster_type="kmeans", 
     elif cluster_type == "spec":
         km = SpectralClustering(n_clusters=n_clusters, n_init=its)
     elif cluster_type == "aggc":
-        km = AgglomerativeClustering()
+        km = AgglomerativeClustering(n_clusters=n_clusters)
     elif cluster_type == "dbscan":
         get_eps_and_samples(x, k_neigh)
         km = DBSCAN(eps=0.1, min_samples=k_neigh)
